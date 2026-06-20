@@ -1,6 +1,5 @@
 import pandas as pd
 import streamlit as st
-import openpyxl
 
 st.set_page_config(page_title='ActiebonnenApp',layout='wide')
 st.header('Blue Excel Uploader')
