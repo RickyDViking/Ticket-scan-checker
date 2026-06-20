@@ -56,7 +56,7 @@ if upload_file is not None:
         .size()
     )
 #Tripper tickets
-    Tripper_ticket = (
+    Tripper = (
         df[
             (df["Category"] == "Tripper ticket")
             ]
