@@ -1,6 +1,7 @@
 import pandas as pd
+pd.set_option("display.max_columns", None)
 
-file = r"C:\Users\rdvan\Downloads\AttendanceReportFilter_20260101-20260617.xlsx"
+file = r"C:\Users\rdvan\Downloads\AttendanceReportFilter_20251118-20261117.xlsx"
 
 df = pd.read_excel(file)
 
