@@ -1,7 +1,13 @@
 import pandas as pd
-pd.set_option("display.max_columns", None)
+import streamlit as st
 
-file = r"C:\Users\rdvan\Downloads\AttendanceReportFilter_20251118-20261117.xlsx"
+st.title("Tickets per dag")
+
+# Export uploaden (in plaats van een vast pad op je eigen pc)
+file = st.file_uploader("Upload de export (AttendanceReportFilter_….xlsx)", type="xlsx")
+
+if file is None:
+    st.stop()
 
 df = pd.read_excel(file)
 
@@ -28,9 +34,9 @@ df.loc[
 ] = "Gewone tickets"
 
 # User filter
-user_input = input(
+user_input = st.text_input(
     "Voer maand of datum in (YYYY-MM of YYYY-MM-DD): "
-)
+).strip()
 
 date_str = pd.to_datetime(df["Date"]).astype(str)
 
@@ -77,6 +83,6 @@ report = pd.concat(
         other
     ],
     axis=1
-).fillna(0)
+).fillna(0).astype(int)
 
-print(report)
+st.dataframe(report)
