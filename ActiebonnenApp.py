@@ -1,15 +1,18 @@
+import datetime
+
 import pandas as pd
 import streamlit as st
 
 st.title("Tickets per dag")
 
-# Export uploaden (in plaats van een vast pad op je eigen pc)
+# Export uploaden
 file = st.file_uploader("Upload de export (AttendanceReportFilter_….xlsx)", type="xlsx")
 
 if file is None:
     st.stop()
 
 df = pd.read_excel(file)
+df["Ticket"] = df["Ticket"].astype(str).str.strip()
 
 # Only scanned
 df = df[df["Scanned"] == "Gescand"].copy()
@@ -17,72 +20,38 @@ df = df[df["Scanned"] == "Gescand"].copy()
 # Date column
 df["Date"] = pd.to_datetime(df["Scan Date"]).dt.date
 
+# Dag kiezen (standaard vandaag)
+dag = st.date_input("Dag", value=datetime.date.today(), format="DD-MM-YYYY")
+
+df = df[df["Date"] == dag]
+
+if df.empty:
+    st.warning(f"Geen gescande tickets op {dag:%d-%m-%Y}.")
+    st.stop()
+
 # Discounted tickets
 df["Discounted"] = (
     (df["Final Price"] > 0) &
     (df["Final Price"] < df["Original Price"])
 )
 
-# Combine Adults + Children
-df["Category"] = df["Ticket"]
+# Indeling in categorieën
+gewoon = df["Ticket"].isin(["Volwassenen", "Kinderen vanaf 3 jaar"])
+tripper = df["Ticket"] == "Tripper ticket"
 
-df.loc[
-    df["Ticket"].isin(
-        ["Volwassenen", "Kinderen vanaf 3 jaar"]
-    ),
-    "Category"
-] = "Gewone tickets"
+# Vaste kolommen, altijd in deze volgorde
+aantallen = {
+    "Tripper tickets": int(tripper.sum()),
+    "Gewone tickets": int((gewoon & ~df["Discounted"]).sum()),
+    "Gewone tickets korting": int((gewoon & df["Discounted"]).sum()),
+}
 
-# User filter
-user_input = st.text_input(
-    "Voer maand of datum in (YYYY-MM of YYYY-MM-DD): "
-).strip()
+# Daarna: elke andere ticketsoort die die dag gescand is
+overig = df[~gewoon & ~tripper]["Ticket"].value_counts()
+for ticket, aantal in overig.items():
+    aantallen[ticket] = int(aantal)
 
-date_str = pd.to_datetime(df["Date"]).astype(str)
-
-if len(user_input) == 7:
-    df = df[date_str.str.startswith(user_input)]
-
-elif len(user_input) == 10:
-    df = df[date_str == user_input]
-
-# Regular tickets FULL PRICE
-gewone_full = (
-    df[
-        (df["Category"] == "Gewone tickets") &
-        (~df["Discounted"])
-    ]
-    .groupby("Date")
-    .size()
-)
-
-# Regular tickets DISCOUNTED
-gewone_discount = (
-    df[
-        (df["Category"] == "Gewone tickets") &
-        (df["Discounted"])
-    ]
-    .groupby("Date")
-    .size()
-)
-
-# Other tickets
-other = (
-    df[
-        df["Category"] != "Gewone tickets"
-    ]
-    .groupby(["Date", "Category"])
-    .size()
-    .unstack(fill_value=0)
-)
-
-report = pd.concat(
-    [
-        gewone_full.rename("Gewone tickets"),
-        gewone_discount.rename("Gewone tickets korting"),
-        other
-    ],
-    axis=1
-).fillna(0).astype(int)
+report = pd.DataFrame([aantallen], index=[dag.strftime("%d-%m-%Y")])
+report.index.name = "Datum"
 
 st.dataframe(report)
